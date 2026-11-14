@@ -61,6 +61,8 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);overflow:hid
 #over .num{font-size:4.2rem;font-weight:800;color:var(--sun);line-height:1;margin-top:.6rem;font-variant-numeric:tabular-nums}
 #over .unit{font-size:1.1rem;font-weight:600;margin-bottom:1.2rem}
 #over .brand{font-size:2.2rem;font-weight:800;letter-spacing:.02em;margin-top:.4rem}
+.lb{font-size:.85rem;line-height:1.4;margin:.35rem 0 .2rem;opacity:.95}.lb b{color:var(--sun)}.lb:empty,.lbh:empty{display:none}
+.lbh{font-size:.8rem;opacity:.7;margin:.35rem 0 0;max-width:20rem}.lbh a{color:var(--sun)}
 #over .bot{font-size:1.2rem;font-weight:700;color:var(--sun);text-decoration:none;margin-top:.3rem}
 /* ролик */
 #title{position:fixed;left:0;right:0;top:11%;text-align:center;opacity:0;pointer-events:none;text-shadow:0 .15rem 1.2rem rgba(15,18,25,.95),0 0 .4rem rgba(15,18,25,.8)}
@@ -97,6 +99,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);overflow:hid
   <p>Дорогу перекрывают — прыгайте, проскальзывайте, меняйте полосу. <b class="sun">⚡&nbsp;Авто</b> подскажет, а если не успеете — вытащит вас сам.</p>
   <p>Собирайте арки: каждые пять заряжают ⚡&nbsp;Авто. По пути — шесть стран.</p>
   <p class="route" id="route"></p>
+  <div class="lb" id="lbs"></div>
   <div class="keys"><span><b>↑</b>прыжок</span><span><b>↓</b>проскользнуть</span><span><b>← →</b>полоса</span></div>
   <p class="keys2">на телефоне — смахните в нужную сторону</p>
   <button class="btn" id="go">Начать</button>
@@ -109,6 +112,9 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);overflow:hid
   <div class="joke" id="oj"></div>
   <div class="num" id="ov">0</div>
   <div class="unit" id="ou">минут без сбоев</div>
+  <div class="lb" id="lbo"></div>
+  <button class="btn" id="save" hidden>🏆 Записать в таблицу</button>
+  <p class="lbh" id="lbh"></p>
   <div class="brand">Arka</div>
   <p>В Arka свободную дорогу выбирает ⚡&nbsp;Авто — нажимать ничего не нужно.</p>
   <a class="bot" href="https://t.me/ArkaPassBot?start=src_igra" target="_blank" rel="noopener">@ArkaPassBot</a>
@@ -591,7 +597,7 @@ function draw(){
   if(over){
     red.style.opacity=.45*(1-seg(t,S.deadT,S.deadT+.5));
     if(t-S.deadT>.9&&$('#over').hidden){const n=score();$('#ov').textContent=n;
-      $('#ou').textContent=plural(n,['минута','минуты','минут'])+' без сбоев';$('#ocat').textContent='«'+CONTENT.toasts.over+'»';$('#oj').textContent=COUNTRIES[S.deathC].crash||'';$('#over').hidden=false}
+      $('#ou').textContent=plural(n,['минута','минуты','минут'])+' без сбоев';onOver(n);$('#ocat').textContent='«'+CONTENT.toasts.over+'»';$('#oj').textContent=COUNTRIES[S.deathC].crash||'';$('#over').hidden=false}
   }else red.style.opacity=0;
 }
 $('#route').textContent=COUNTRIES.map(c=>c.flag).join(' → ');
@@ -655,7 +661,22 @@ function start(){reset();$('#start').hidden=true;$('#over').hidden=true;S.toast=
 $('#go').onclick=start; $('#again').onclick=start;
 // Telegram Mini App: если игра открыта кнопкой бота — разворачиваем на весь экран и выключаем закрытие свайпом вниз (смахивание вниз — подкат)
 const GAME_URL='https://daniilglushko.github.io/ubegi/';
-const tg=()=>(window.Telegram&&Telegram.WebApp&&Telegram.WebApp.initData)?Telegram.WebApp:null;
+const tg=()=>(window.Telegram&&Telegram.WebApp&&Telegram.WebApp.platform&&Telegram.WebApp.platform!=='unknown')?Telegram.WebApp:null;
+// 14.11: таблица рекордов. Бот кладёт её в адрес: #lb=<base64url JSON {t:[[имя,очки]…], r:место, b:рекорд, n:имя}>.
+// Записать результат можно только из игры, открытой кнопкой «🎮 Играть» под полем ввода (sendData; у такой игры нет initData).
+const LB=(()=>{try{const m=location.hash.match(/lb=([A-Za-z0-9_-]+)/);if(!m)return null;let b=m[1].replace(/-/g,'+').replace(/_/g,'/');
+  while(b.length%4)b+='=';return JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(b),c=>c.charCodeAt(0))))}catch(e){return null}})();
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let SESSION_BEST=0;
+function lbHTML(n){if(!LB||!LB.t||!LB.t.length)return '';const md=['🥇','🥈','🥉'];
+  return '🏆 '+LB.t.slice(0,n).map((r,i)=>`${md[i]||(i+1)+'.'} ${esc(r[0])} — <b>${r[1]}</b>`).join(' · ')+(LB.r?`<br>Вы: ${LB.r}-е место, рекорд <b>${LB.b}</b>`:'')}
+function onOver(n){SESSION_BEST=Math.max(SESSION_BEST,n);$('#lbo').innerHTML=lbHTML(3);const w=tg();
+  const canSave=!!(w&&!w.initData&&typeof w.sendData==='function');$('#save').hidden=!canSave;
+  $('#save').textContent=`🏆 Записать в таблицу: ${SESSION_BEST}`;
+  $('#lbh').innerHTML=canSave?'':(w?'Чтобы попасть в таблицу рекордов, откройте игру кнопкой «🎮 Играть» под полем ввода в боте.'
+    :'Таблица рекордов — в <a href="https://t.me/ArkaPassBot?start=src_igra" target="_blank" rel="noopener">@ArkaPassBot</a>: играйте оттуда.')}
+$('#lbs').innerHTML=lbHTML(3);
+$('#save').onclick=()=>{const w=tg();if(w&&w.sendData)w.sendData(JSON.stringify({s:SESSION_BEST,v:2}))};
 {const s=document.createElement('script');s.src='telegram-web-app.js'; /* копия с telegram.org: из России telegram.org открывается не везде */s.async=true;
   s.onload=()=>{const w=tg();if(!w)return;try{w.ready();w.expand();if(w.disableVerticalSwipes)w.disableVerticalSwipes();
     if(w.setHeaderColor)w.setHeaderColor('#0F1219');if(w.setBackgroundColor)w.setBackgroundColor('#0F1219')}catch(e){}};
