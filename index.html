@@ -4,7 +4,7 @@
      runner.js (герой — кот Арчи: обёртка над archi.js, копией docs/mascot/archi.js; rounded-box.js — RoundedBoxGeometry для классической сборки),
      avto.js (помощник «⚡ Авто»), telegram-web-app.js (грузится сам).
      На сайте: https://daniilglushko.github.io/ubegi/ (репозиторий DaniilGlushko/ubegi — ВСЕ файлы папки, кроме demo.html и render.mjs); в Telegram — кнопка бота (Mini App).
-     Ролик: index.html?demo=1 (или demo.html) — window.render(t), 20 с сценария. Проверка: window.__test (см. внизу). -->
+     Ролик: index.html?demo=1 (или demo.html) — window.render(t), 18 с под голос igra-golos-adam.mp3 (звук кладётся при сборке mp4). Проверка: window.__test (см. внизу). -->
 <html lang="ru"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="theme-color" content="#0F1219">
@@ -65,12 +65,18 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);overflow:hid
 /* ролик */
 #title{position:fixed;left:0;right:0;top:11%;text-align:center;opacity:0;pointer-events:none;text-shadow:0 .15rem 1.2rem rgba(15,18,25,.95),0 0 .4rem rgba(15,18,25,.8)}
 #toast,#hud{text-shadow:0 0 .4rem rgba(15,18,25,.6)}
-#title .t{font-size:2.5rem;font-weight:800;letter-spacing:-.02em;line-height:1.08}
+#title .t{font-size:2.9rem;font-weight:800;letter-spacing:-.02em;line-height:1.08}
 #title .s{font-size:1.05rem;opacity:.7;margin-top:.5rem;font-weight:600}
 #end{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
   background:rgba(15,18,25,.86);opacity:0;pointer-events:none}
-#end .t{font-size:2.6rem;font-weight:800;line-height:1.12;letter-spacing:-.02em}
-#end .s{font-size:1.15rem;font-weight:600;opacity:.75;margin-top:1.6rem}
+#end .t{font-size:3rem;font-weight:800;line-height:1.1;letter-spacing:-.02em}
+#end .b{font-size:1.6rem;font-weight:800;margin-top:1.4rem}
+#end .s{font-size:1.05rem;font-weight:600;opacity:.7;margin-top:2.2rem}
+#cap{position:fixed;left:50%;bottom:12%;transform:translateX(-50%);width:max-content;max-width:90vw;text-align:center;font-size:2rem;font-weight:800;line-height:1.15;
+  padding:.55rem 1.1rem;border-radius:1rem;background:rgba(15,18,25,.82);opacity:0;pointer-events:none;letter-spacing:-.01em}
+#cap b{color:var(--sun)}
+#flags{position:fixed;left:0;right:0;top:27%;display:flex;justify-content:center;gap:.7rem;font-size:2.4rem;opacity:0;pointer-events:none}
+#flags span{display:inline-block}
 </style></head><body>
 <canvas id="c"></canvas>
 <div id="hud">
@@ -94,7 +100,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);overflow:hid
   <div class="keys"><span><b>↑</b>прыжок</span><span><b>↓</b>проскользнуть</span><span><b>← →</b>полоса</span></div>
   <p class="keys2">на телефоне — смахните в нужную сторону</p>
   <button class="btn" id="go">Начать</button>
-  <div class="foot">Arka · <a href="https://t.me/ArkaPassBot" target="_blank" rel="noopener">@ArkaPassBot</a></div>
+  <div class="foot">Arka · <a href="https://t.me/ArkaPassBot?start=src_igra" target="_blank" rel="noopener">@ArkaPassBot</a></div>
 </div>
 
 <div id="over" class="card" hidden>
@@ -105,13 +111,14 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);overflow:hid
   <div class="unit" id="ou">минут без сбоев</div>
   <div class="brand">Arka</div>
   <p>В Arka свободную дорогу выбирает ⚡&nbsp;Авто — нажимать ничего не нужно.</p>
-  <a class="bot" href="https://t.me/ArkaPassBot" target="_blank" rel="noopener">@ArkaPassBot</a>
+  <a class="bot" href="https://t.me/ArkaPassBot?start=src_igra" target="_blank" rel="noopener">@ArkaPassBot</a>
   <button class="btn" id="again">Ещё раз</button>
   <button class="btn ghost" id="share">Поделиться с другом</button>
 </div>
 
-<div id="title"><div class="t">Убеги<br>от блокировки</div><div class="s">мини-игра Arka</div></div>
-<div id="end"><div class="t">Закроют дорогу —<br>откроем <span class="sun">другую.</span></div><div class="s">Arka · @ArkaPassBot</div></div>
+<div id="title"><div class="t">Опять всё<br><span class="sun">перекрыли?</span></div></div>
+<div id="cap"></div><div id="flags"></div>
+<div id="end"><div class="t">Побейте рекорд<br><span class="sun">Арчи</span></div><div class="b" id="endBot">Играть — <span class="sun">@ArkaPassBot</span></div><div class="s">Закроют дорогу — откроем другую.</div></div>
 
 <script src="three.min.js"></script>
 <script src="content.js"></script>
@@ -531,9 +538,10 @@ function draw(){
   const sl=S.slideT>0?Math.min(1,(SLIDE_T-S.slideT)/.08,S.slideT/.12):0;
   runner.group.position.set(S.x,S.y,z);
   runner.update({phase:S.run*.95,air:clamp(S.y/.35),vy:S.vy,slide:sl,lean:S.lean,stop,turn:over?ease((t-S.deadT-.2)/.5):0,
-    shield:Math.max(S.shieldT>0?Math.min(1,S.shieldT/.4):0,S.inv>0?.7*Math.min(1,S.inv/.3):0)},1/60,t);
+    shield:Math.max(S.shieldT>0?Math.min(1,S.shieldT/.4):0,S.inv>0?.7*Math.min(1,S.inv/.3):0),glance:S.glance},1/60,t);
   shadow.position.set(S.x,.07,z); shadow.scale.setScalar(1-clamp(S.y/1.4)*.4);
   camera.position.set(S.x*.55,3.5+camExtra*.3+S.y*.25,z+6.8+camExtra); camera.lookAt(S.x*.3,1.25+S.y*.15,z-8);
+  if(window.__cam){const c=window.__cam;camera.position.set(S.x+c[0],c[1],z+c[2]);camera.lookAt(S.x+c[3],c[4],z+c[5])} // только для проверки (__test)
   ground.position.z=z-100;
   const base=Math.floor(-z/DASH);
   for(let i=0;i<NDASH;i++){const dz=-(base-3+i)*DASH;_m.makeTranslation(-.85,.06,dz);dashes.setMatrixAt(i,_m);_m.makeTranslation(.85,.06,dz);dashes.setMatrixAt(NDASH+i,_m)}
@@ -579,7 +587,7 @@ function draw(){
   toast.style.opacity=ta; toast.style.transform=`translateX(-50%) translateY(${(1-ease(ta))*-12}px)`;
   const bu=t-S.banner.t, ba=seg(bu,0,.25)*(1-seg(bu,2.4,2.8));
   if(ba>0){const B2=COUNTRIES[S.banner.ci];setText($('#bf'),'bf',B2.flag);setText($('#bn'),'bn',B2.name);setText($('#bs'),'bs',B2.sub);setText($('#bj'),'bj',B2.enter)}
-  banner.style.opacity=S.mode==='play'?ba:0; banner.style.transform=`translateX(-50%) scale(${.92+.08*ease(seg(bu,0,.3))})`;
+  banner.style.opacity=S.mode==='play'&&!S.noBanner?ba:0; banner.style.transform=`translateX(-50%) scale(${.92+.08*ease(seg(bu,0,.3))})`;
   if(over){
     red.style.opacity=.45*(1-seg(t,S.deadT,S.deadT+.5));
     if(t-S.deadT>.9&&$('#over').hidden){const n=score();$('#ov').textContent=n;
@@ -588,38 +596,57 @@ function draw(){
 }
 $('#route').textContent=COUNTRIES.map(c=>c.flag).join(' → ');
 
-// =================== ролик: window.render(t), 20 с ===================
+// =================== ролик: window.render(t), 18 с — под голос igra-golos-adam.mp3 (метки слов — whisper, см. VO) ===================
 if(DEMO){
   ['#start','#over'].forEach(s=>$(s).hidden=true);
-  const toastEl=toast, title=$('#title'), end=$('#end'), hud=$('#hud');
+  const title=$('#title'), end=$('#end'), hud=$('#hud'), cap=$('#cap'), flags=$('#flags'), endBot=$('#endBot');
   const pain=t=>CONTENT.pains.find(p=>p.text===t);
+  const V=10;                                  // скорость в ролике постоянная: место = 10 м × секунда
+  // подписи под голос (секунды по словам диктора); <b> — ключевое слово цветом солнца
+  const VO=[[1.42,2.25,'<b>Бегите!</b>'],[2.3,3.3,'Это <b>Арчи</b>'],[3.45,5.0,'Белый список — <b>прыжок</b>'],[5.15,6.75,'Замедление — <b>пригнуться</b>'],
+    [7.0,8.5,'Глушилка — <b>в сторону</b>'],[8.8,9.7,'Не <b>успели?</b>'],[9.8,11.0,'<b>⚡ Авто</b> перенесёт'],[11.1,13.05,'<b>Шесть стран</b> — ноль сбоев']];
+  const FLASH=[11.2,11.47,11.74,12.01,12.28];  // «Шесть стран»: Россия → Нидерланды → … → Великобритания
+  const END=13.15;                             // «Побьёте рекорд Арчи?»
+  flags.innerHTML=COUNTRIES.map(c=>`<span>${c.flag}</span>`).join('');
+  const flagEls=[...flags.children];
   function demoInit(){
-    reset(7); S.noSpawn=true; S.charges=1; S.bounds=[{d:-1e9,i:0},{d:60,i:1},{d:100,i:2}]; S.toast={html:CONTENT.toasts.start,t:.5,dur:1.8};
-    // Россия: прыжок, подкат, смена полосы
-    for(const d of [22,24,26])addItem('arch',1,d);
-    addObs('low',1,33,{item:pain('Белый список')});
-    addObs('wall',0,46,{item:pain('Нет сети')}); addObs('high',1,46,{item:pain('Сеть ловит, интернета нет')}); addObs('wall',2,46,{item:pain('Глушилка')});
-    addObs('wall',1,57,{item:pain('Отключите защиту'),dodge:2}); addObs('slow',0,57);
-    // Нидерланды: кексик → «Чилл», арки ×2
-    addItem('cake',2,70); for(const d of [84,86,88])addItem('arch',2,d);
-    addObs('low',2,96,{model:'bike'}); addObs('wall',1,96,{item:pain('Видео грузится…')});
-    // Албания: седан навстречу — ⚡ Авто спасает
-    addObs('car',2,125,{ignore:true}); addObs('wall',0,125,{item:pain('Мобильный интернет отключён')});
-    addObs('low',1,140,{item:pain('Шлагбаум')}); addObs('wall',2,140,{item:pain('Недоступно в вашем регионе')});
+    reset(7); S.noSpawn=true; S.charges=1; S.speed=V; S.noBanner=true; S.noToast=true;
+    S.bounds=[{d:-1e9,i:0},...FLASH.map((t,i)=>({d:V*t,i:i+1}))];
+    for(const d of [8,10,12,14])addItem('arch',1,d);
+    // «Белый список — прыжок»: прыжок ≈4.3 с
+    addObs('low',1,45.3,{item:pain('Белый список')}); addObs('low',0,45.3,{item:pain('Шлагбаум')}); addObs('wall',2,45.3,{item:pain('Нет сети')});
+    // «Замедление — пригнуться»: подкат ≈5.8 с
+    addObs('high',1,60.7,{item:{text:'Замедление',icon:'spinner'}}); addObs('slow',0,60.7); addObs('slow',2,60.7);
+    // «Глушилка — в сторону»: уход вправо ≈7.45 с
+    addObs('wall',1,79.5,{item:pain('Глушилка'),dodge:2}); addObs('wall',0,79.5,{item:pain('Отключите защиту')});
+    // «Не успели — Авто перенесёт»: машина навстречу, столкновение ≈9.95 с, ⚡ Авто уносит на левую полосу
+    addObs('car',2,100.7,{ignore:true}); addObs('wall',1,100.7,{item:pain('Мобильный интернет отключён')});
+    for(const d of [113,115,117,119,121,123])addItem('arch',0,d);
     for(const sl of slots)sl.k=null;
   }
   demoInit();
+  const UIc={};
   window.render=function(t){
     if(t<S.T-1e-6)demoInit();
+    S.glance=Math.sin(Math.PI*seg(t,2.3,3.45));          // «Это Арчи» — оглядывается, виден глаз-солнце
     while(S.T<t-1e-9)step(Math.min(STEP,t-S.T));
     draw();
-    const ti=seg(t,.15,.6)*(1-seg(t,1.9,2.3)); title.style.opacity=ti;
-    const e=seg(t,16.2,16.8); end.style.opacity=e; end.style.transform=`translateY(${(1-ease(e))*30}px)`;
-    hud.style.opacity=1-e; label.style.opacity=1-e; toastEl.style.opacity=Math.min(+toastEl.style.opacity,1-e); banner.style.opacity=Math.min(+banner.style.opacity,1-e);
+    // крючок с первого кадра
+    title.style.opacity=1-seg(t,1.2,1.4);
+    // подписи по одной фразе
+    let c=null,ca=0; for(const v of VO)if(t>=v[0]-.05&&t<v[1]){c=v;ca=seg(t,v[0]-.05,v[0]+.07)*(1-seg(t,v[1]-.15,v[1]))}
+    if(c&&UIc.cap!==c[2]){UIc.cap=c[2];cap.innerHTML=c[2]} cap.style.opacity=c?ca:0; cap.style.transform=`translateX(-50%) scale(${.94+.06*ease(ca)})`;
+    // флаги шести стран
+    const fa=seg(t,11.1,11.25)*(1-seg(t,12.9,13.1)); flags.style.opacity=fa;
+    flagEls.forEach((el,i)=>{const ti=i?FLASH[i-1]:11.12, on=seg(t,ti,ti+.12), cur=t>=ti&&(i===5||t<FLASH[i]);el.style.opacity=.25+.75*on;el.style.transform=`scale(${(.6+.4*ease(on))*(cur?1.3:1)})`});
+    // концовка: «Побейте рекорд Арчи», «Играть — @ArkaPassBot»
+    const e=seg(t,END,END+.4); end.style.opacity=e; end.style.transform=`translateY(${(1-ease(e))*30}px)`;
+    endBot.style.transform=`scale(${1+.06*Math.sin(Math.PI*seg(t,14.65,15.4))+.06*Math.sin(Math.PI*seg(t,15.4,16.9))})`;
+    hud.style.opacity=1-e; label.style.opacity=1-e; toast.style.opacity=0; banner.style.opacity=0;
   };
   window.__demo={state:()=>({T:S.T,dist:S.dist,lane:S.lane,y:S.y,slide:S.slideT>0,charges:S.charges,country:COUNTRIES[S.cIdx].id,mode:S.mode,saves:S.saves,hits:S.hits,chill:S.chillT,toast:S.toast.html,arch:S.archPts})};
   window.render(0);
-  if(/[?&]loop=1/.test(location.search)){const t0=performance.now();(function L(){window.render(((performance.now()-t0)/1000)%20);requestAnimationFrame(L)})()}
+  if(/[?&]loop=1/.test(location.search)){const t0=performance.now();(function L(){window.render(((performance.now()-t0)/1000)%18.1);requestAnimationFrame(L)})()}
   return;
 }
 
