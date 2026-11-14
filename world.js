@@ -12,6 +12,8 @@
 //   particles — 'snow' | 'rain' | null
 //   car — фигура встречной машины; low, wall — особые фигуры вместо обычных табло (с вероятностью lowP / wallP)
 //   slowP — как часто попадается «Замедление»
+//   atmo — свет и воздух: hemi [небо, земля, сила], sun [цвет, сила], fog [ближе, дальше], horizon (зарево в конце улицы), hz (его яркость),
+//          lamp (цвет фонарей), birds (птицы в небе)
 //   decor(THREE, kit, r, side) → THREE.Group | null — украшения для куска дороги 10 м с одной стороны (r() — случайное 0..1, одинаковое при каждом запуске)
 //
 // models[name](THREE, kit, opt) → THREE.Group с userData {hd: половина длины по ходу, v: скорость навстречу м/с}
@@ -126,6 +128,20 @@
     K.phone = M([p(box(.95, 2.5, .95), 0xD4242C, 0, 1.25, 0), p(box(1.05, .18, 1.05), 0xB81E25, 0, 2.58, 0), p(box(.8, .2, .8), 0xD4242C, 0, 2.75, 0, { sy: .8 }),
       p(box(.97, .14, .97), 0x1A1C20, 0, 2.28, 0)]);
     K.phoneGlow = M([-1, 1].flatMap(s => [p(box(.02, 1.4, .62), 0xFFE6A8, s * .485, 1.3, 0), p(box(.62, 1.4, .02), 0xFFE6A8, 0, 1.3, s * .485)]));
+    K.boom = M([p(box(.14, 1.25, .14), 0x3C4459, 0, .62, 0), p(box(.32, .3, .2), 0x2A2F3B, -.2, 1.05, 0),
+      ...[0, 1, 2, 3, 4, 5, 6, 7].map(i => p(box(.22, .09, .09), i % 2 ? 0xF2F2F2 : RED, .2 + i * .22, 1.08, 0))]);
+    K.rider = M([p(box(.3, .5, .24), 0xFFB020, -.12, 1.28, 0, { rz: -.35 }), p(sph(.13, 8, 6), 0xFFE0BE, .02, 1.64, 0), p(sph(.14, 8, 4, true), 0x2F86B8, .02, 1.68, 0),
+      p(box(.09, .45, .09), 0x2E3850, -.2, .8, .08, { rz: .4 }), p(box(.09, .45, .09), 0x2E3850, -.1, .78, -.08, { rz: -.2 }), p(box(.08, .38, .08), 0xFFB020, .16, 1.2, 0, { rz: -1.1 })]);
+    // неоновые щиты (США): свои слова, без брендов
+    K.neonMats = ['OPEN 24/7', 'BURGERS', 'MOTEL ★'].map((txt, i) => {
+      const col = ['#FF4FD8', '#3FE0FF', '#FFD23F'][i];
+      const tex = kit.cnv(512, 200, (g, w, h) => { g.fillStyle = '#120A22'; g.fillRect(0, 0, w, h); g.strokeStyle = col; g.lineWidth = 8; g.shadowColor = col; g.shadowBlur = 24;
+        g.strokeRect(16, 16, w - 32, h - 32); g.font = '900 86px -apple-system,"Helvetica Neue",Arial,sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+        g.fillStyle = col; g.fillText(txt, w / 2, h / 2 + 4); g.shadowBlur = 0; g.fillStyle = '#FFFFFF'; g.globalAlpha = .55; g.fillText(txt, w / 2, h / 2 + 4); });
+      return new T.MeshBasicMaterial({ map: tex, transparent: true, fog: false });
+    });
+    K.neonGeo = new T.PlaneGeometry(2.6, 1.0);
+    K.neonPole = M([p(box(.1, 3.2, .1), 0x2A2F3B, -1.0, 1.6, 0), p(box(.1, 3.2, .1), 0x2A2F3B, 1.0, 1.6, 0)]);
     K.bench = M([p(box(.5, .08, 1.6), 0x5A3E30, 0, .5, 0), p(box(.08, .5, 1.6), 0x5A3E30, .22, .78, 0), p(box(.4, .5, .08), 0x1A1C20, 0, .25, -.7), p(box(.4, .5, .08), 0x1A1C20, 0, .25, .7)]);
     return K;
   }
@@ -183,6 +199,7 @@
       const k = init(T, kit), g = new T.Group();
       g.add(mesh(T, k.drifts[r() < .5 ? 0 : 1], k.solid, s * (3.4 + r() * .6), 0, (r() - .5) * 3, r() * 3));
       if (r() < .45) g.add(mesh(T, k.birch, k.solid, s * (4.4 + r() * .4), 0, (r() - .5) * 6, r() * 3));
+      if (r() < .22) g.add(mesh(T, k.boom, k.solid, s * 4.5, 0, (r() - .5) * 5, s > 0 ? Math.PI : 0));   // шлагбаум у обочины
       return g;
     },
     nl(T, kit, r, s) {
@@ -190,6 +207,8 @@
       const w = new T.Mesh(k.canalGeo || (k.canalGeo = new T.PlaneGeometry(2.6, 10).rotateX(-Math.PI / 2)), k.water); w.position.set(s * 6.0, .03, 0); g.add(w);
       if (r() < .7) { const v = Math.floor(r() * 3); g.add(mesh(T, k.tulips[v], k.solid, s * 4.15, 0, 0)); g.add(mesh(T, k.tulipStem, k.solid, s * 4.15, 0, 0)); }
       else g.add(mesh(T, k.bike, k.solid, s * 3.6, 0, (r() - .5) * 4, Math.PI / 2 + (r() - .5) * .4));
+      if (r() < .4) { const b = new T.Group(); b.add(mesh(T, k.bike, k.solid)); b.add(mesh(T, k.rider, k.solid)); b.position.set(s * 3.35, 0, 0); b.rotation.y = s > 0 ? -Math.PI / 2 : Math.PI / 2;
+        b.userData.dir = s > 0 ? 1 : -1; g.add(b); g.userData.ride = b; }   // велосипедист едет по тротуару
       if (r() < .33) { const m = mesh(T, k.mill, k.solid, s * 9.2, 0, (r() - .5) * 4, s > 0 ? -.4 : .4); const b = mesh(T, k.blades, k.solid, 0, 4.2, 1.25);
         m.add(b); g.add(m); g.userData.spin = b; g.userData.noBuilding = true; }
       return g;
@@ -202,6 +221,8 @@
     },
     us(T, kit, r, s) {
       const k = init(T, kit), g = new T.Group();
+      if (r() < .45) { const b = new T.Group(); b.add(mesh(T, k.neonPole, k.solid)); const n = new T.Mesh(k.neonGeo, k.neonMats[Math.floor(r() * 3)]); n.position.y = 3.6; b.add(n);
+        b.position.set(s * 4.6, 0, (r() - .5) * 3); b.rotation.y = -s * .45; g.add(b); }
       if (r() < .5) g.add(mesh(T, k.burger, k.solid, s * 4.0, 0, (r() - .5) * 4, r() * 3));
       else { g.add(mesh(T, k.bus, k.solid, s * 3.75, -.2, (r() - .5) * 2, r() < .5 ? 0 : Math.PI)); g.add(mesh(T, k.busGlow, k.glow, s * 3.75, -.2, 0)); g.children[1].position.z = g.children[0].position.z; g.children[1].rotation.y = g.children[0].rotation.y; }
       return g;
@@ -226,29 +247,41 @@
     { id: 'ru', name: 'Россия', flag: '🇷🇺', sub: 'Белые списки', enter: 'Пропуск есть? Только по белому списку!',
       toasts: ['Сеть ловит — интернета нет', 'Открываются только Госуслуги и маркетплейсы'],
       save: null, crash: 'Не нужно обходить белые списки, если интернета нет вообще', near: null, bonus: null,
+      atmo: { hemi: [0x9FB8F0, 0x1A2232, 2.3], sun: [0xCFE0FF, 1.8], fog: [16, 70], horizon: 0x3A64B0, hz: .5, lamp: 0xCFE4FF },
       colors: { sky: 0x111827, road: 0x1E2433, side: 0x4A5368, field: 0x5C6782, bld: [0x7E86A0, 0x707894, 0x8A8496] },
       build: { h: 1, off: 0 }, particles: 'snow', car: 'car', low: 'drift', lowP: .25, wall: null, slowP: .3, decor: D.ru },
     { id: 'nl', name: 'Нидерланды', flag: '🇳🇱', sub: 'Каналы и велосипеды', enter: 'Забежим на кексик?',
       toasts: ['Велосипедов больше, чем людей'], save: null, crash: 'Даже велосипед бы не помог', near: null, bonus: 'cake',
+      atmo: { hemi: [0xA8D0D8, 0x162420, 2.4], sun: [0xFFE2B8, 2.0], fog: [18, 74], horizon: 0x2A8A9A, hz: .45, lamp: 0xFFD27A },
       colors: { sky: 0x0D1B24, road: 0x1C2630, side: 0x323A46, field: 0x173322, bld: [0x8A6E62, 0x7A6A78, 0x6E7E8E] },
       build: { h: .7, off: 3.6 }, particles: null, car: 'car', low: 'bike', lowP: .45, wall: null, slowP: 0, decor: D.nl },
     { id: 'al', name: 'Албания', flag: '🇦🇱', sub: 'Бункеры и старые седаны', enter: 'Здесь вас встретят как брата',
       toasts: ['Бункеров тут больше, чем пробок'], save: 'О, братья албанцы!', crash: 'О, братья албанцы! В следующий раз подвезём', near: 'О, братья албанцы!', bonus: null,
+      atmo: { hemi: [0xFFB890, 0x2A1A14, 2.3], sun: [0xFF9A5A, 2.6], fog: [18, 72], horizon: 0xFF6A2A, hz: .75, lamp: 0xFFA860, birds: true },
       colors: { sky: 0x1B1422, road: 0x241F28, side: 0x3E3434, field: 0x2C2419, bld: [0xA08670, 0x8E7A86, 0x9A8C70] },
       build: { h: .55, off: 2.2 }, particles: null, car: 'sedan', low: null, lowP: 0, wall: null, slowP: 0, decor: D.al },
     { id: 'us', name: 'США', flag: '🇺🇸', sub: 'Всё по-крупному', enter: 'Всё по-крупному: арки ×2',
       toasts: ['Порция арок — двойная'], save: null, crash: 'Даже большой бургер не спас', near: null, bonus: 'big',
+      atmo: { hemi: [0xB0A0FF, 0x1A1430, 2.4], sun: [0xFF8AD0, 2.0], fog: [20, 78], horizon: 0xC23AFF, hz: .6, lamp: 0xFF6AD8 },
       colors: { sky: 0x130F26, road: 0x1A1A2C, side: 0x2E2A44, field: 0x17142A, bld: [0x6E78A8, 0x7C6E9E, 0x5E86A0] },
       build: { h: 1.7, off: .4 }, particles: null, car: 'car', low: null, lowP: 0, wall: 'bus', wallP: .35, slowP: 0, decor: D.us },
     { id: 'mk', name: 'Македония', flag: '🇲🇰', sub: 'Колонны и озеро', enter: 'Даже Македонский бы не догнал',
       toasts: ['Статуй больше, чем светофоров'], save: null, crash: 'Колонну не перепрыгнули — бывает', near: null, bonus: null,
+      atmo: { hemi: [0xFFE2A8, 0x22201A, 2.5], sun: [0xFFD27A, 2.6], fog: [18, 76], horizon: 0xFFC060, hz: .6, lamp: 0xFFD27A, birds: true },
       colors: { sky: 0x0E1B26, road: 0x1E2532, side: 0x4A4F5A, field: 0x18261F, bld: [0xC8C0B0, 0xB8B2A6, 0xA8A49C] },
       build: { h: .6, off: .6, skip: -1 }, particles: null, car: 'car', low: 'column', lowP: .4, wall: null, slowP: 0, decor: D.mk },
     { id: 'uk', name: 'Великобритания', flag: '🇬🇧', sub: 'Дождь и чай', enter: 'Внимание: левостороннее движение!',
       toasts: ['Дождь — это просто погода', 'Время чая: ловите чашку'], save: null, crash: 'Автобус приехал по расписанию', near: null, bonus: 'tea',
+      atmo: { hemi: [0x9AA6B8, 0x1A1E24, 2.1], sun: [0xC8D0DC, 1.4], fog: [9, 48], horizon: 0x7A8494, hz: .35, lamp: 0xFFE0A0 },
       colors: { sky: 0x161B22, road: 0x22272E, side: 0x343840, field: 0x1A2620, bld: [0x8A5A4A, 0x7A7470, 0x6A6E78] },
       build: { h: .9, off: 0 }, particles: 'rain', car: 'decker', low: null, lowP: 0, wall: null, slowP: 0, decor: D.uk },
   ];
 
-  window.ARKA_WORLD = { countries, models, init };
+  // каждый кадр: блики на воде (каналы, озеро) и мерцание неона
+  function animate(t) {
+    if (!K) return;
+    K.water.emissive.setRGB(.04 + .03 * Math.sin(t * 2.3), .13 + .06 * Math.sin(t * 1.7 + 1), .21 + .08 * Math.sin(t * 2.9 + 2));
+    K.neonMats.forEach((m, i) => { m.opacity = (Math.sin(t * 13 + i * 2) > -.85 || Math.sin(t * .7 + i) > .3) ? 1 : .35; });
+  }
+  window.ARKA_WORLD = { countries, models, init, animate };
 })();
