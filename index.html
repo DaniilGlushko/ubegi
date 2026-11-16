@@ -87,7 +87,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);overflow:hid
   <div class="row"><div id="score" class="pill"><b id="sv">0</b> мин без сбоев</div><div id="auto" class="pill">⚡ Авто<span id="dots"></span></div></div>
   <div class="row"><div id="country" class="pill"><span id="cf"></span> <span id="cn"></span><span class="bn" id="cb"></span></div></div>
 </div>
-<button id="snd" class="pill" tabindex="-1" aria-label="Звук">🔊</button>
+<button id="snd" class="pill" tabindex="-1" aria-label="Звук" style="display:none">🔊</button>
 <div id="label">⚡ Авто</div>
 <div id="toast"></div>
 <div id="banner"><div><span class="f" id="bf"></span><span class="n" id="bn"></span></div><div class="s" id="bs"></div><div class="j" id="bj"></div></div>
@@ -111,7 +111,6 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);overflow:hid
 
 <div id="over" class="card" hidden>
   <div class="why">Упёрлись в блокировку</div>
-  <div class="cat" id="ocat"></div>
   <div class="joke" id="oj"></div>
   <div class="num" id="ov">0</div>
   <div class="unit" id="ou">минут без сбоев</div>
@@ -136,7 +135,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);overflow:hid
 <script src="archi.js"></script>
 <script src="runner.js"></script>
 <script src="avto.js"></script>
-<script src="sound.js"></script>
+<!-- 16.11: звуки убраны совсем (владелец: «всё пищит… не прикольно»); без sound.js SND = null — sfx() молчит -->
 <script>
 (function(){
 const DEMO=/[?&]demo=1/.test(location.search);
@@ -654,7 +653,7 @@ function draw(){
   if(over){
     red.style.opacity=.45*(1-seg(t,S.deadT,S.deadT+.5));
     if(t-S.deadT>.9&&$('#over').hidden){const n=score();$('#ov').textContent=n;
-      $('#ou').textContent=plural(n,['минута','минуты','минут'])+' без сбоев';onOver(n);sfx('spi');$('#ocat').textContent='«'+CONTENT.toasts.over+'»';$('#oj').textContent=COUNTRIES[S.deathC].crash||'';$('#over').hidden=false}
+      $('#ou').textContent=plural(n,['минута','минуты','минут'])+' без сбоев';onOver(n);$('#oj').textContent=COUNTRIES[S.deathC].crash||'';$('#over').hidden=false}
   }else red.style.opacity=0;
 }
 $('#route').textContent=COUNTRIES.map(c=>c.flag).join(' → ');
