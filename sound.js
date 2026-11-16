@@ -1,14 +1,16 @@
 // Звуки «Убеги от блокировки»: файлы в sfx/ (моно mp3). Web Audio API; без него или с file:// (fetch не работает) — запасной путь через <audio>.
 // iOS и Telegram дают включить звук только после касания: игра зовёт unlock() из обработчика нажатия (кнопка «Начать», тап, клавиша).
 // Договор: window.makeSound() → { unlock(), play(name), toggle(), on (вкл/выкл), log }
-//   play(name): jump slide arch avto crash country kexik begi pochinil spi (неизвестное имя — тишина)
+//   play(name): slide arch avto country kexik begi pochinil spi (неизвестное имя, в т.ч. jump/crash/lane — тишина)
 //   Одинаковый звук звучит не больше 2 раз одновременно; мяу и арки — с небольшим случайным сдвигом высоты (0.92–1.08).
 //   Фразы Арчи громче остальных. Выбор 🔊/🔇 запоминается в localStorage (если он доступен). Никогда не бросает ошибок.
 (function () {
   window.makeSound = function () {
     // 14.11: владелец — «очень жёсткие, грубые звуки режут уши». Звуки мягкие (новые, без верхних частот), тихие (−25…−30 LUFS),
     // смена полосы — без звука (срабатывает слишком часто). Фразы Арчи — заметно громче эффектов.
-    const FILES = { jump: 'meow-jump', slide: 'slide', arch: 'arch', avto: 'avto', crash: 'meow-crash', country: 'country',
+    // 16.11: владелец — «кота звуки совсем уберём… когда кот прыгает, ему как будто на яйца наступили». Мяу при прыжке
+    // и при столкновении убраны (jump, crash — тишина).
+    const FILES = { slide: 'slide', arch: 'arch', avto: 'avto', country: 'country',
       kexik: 'kexik', begi: 'archi-begi', pochinil: 'archi-pochinil', spi: 'archi-spi' };
     const VOL = { jump: .7, slide: .6, arch: .55, avto: .7, crash: .8, country: .6, kexik: .7, begi: 1, pochinil: 1, spi: 1 };
     const PITCH = { jump: 1, arch: 1 };
